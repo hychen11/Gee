@@ -38,8 +38,6 @@ Using %s: Hello, World!
 Using %q: "Hello, World!\n"
 ```
 
-
-
 ## HTTP
 
 ```go
@@ -127,8 +125,6 @@ func New() *Engine {
 
 - `Engine`实现的 ServeHTTP 方法的作用就是，解析请求的路径，查找路由映射表，如果查到，就执行注册的处理方法。如果查不到，就返回 404 NOT FOUND 。
 
-
-
 ### http.Request
 
 `http.Request`是Go语言`net/http`包中定义的一个结构体，代表了一个HTTP请求。这个结构体包含了一个HTTP请求的所有数据，比如请求行（方法、URL）、请求头（Headers）、请求体（Body）、查询参数等。`http.Request`还提供了一些方法来方便地操作这些数据和处理HTTP请求。以下是一些常用的`http.Request`方法和属性的介绍：
@@ -148,3 +144,19 @@ func New() *Engine {
 - **WithContext(ctx context.Context) \*Request**：返回一个新的`Request`指针，它的上下文被改为`ctx`。原始请求的副本被修改；原始请求体不会被改变。
 - **ParseForm() error**：解析URL中的查询字符串和请求体中的表单数据（仅适用于"POST", "PUT"和"PATCH"方法，且内容类型为`application/x-www-form-urlencoded`）。解析后的数据可以通过`Form`和`PostForm`字段访问。
 - **ParseMultipartForm(maxMemory int64) error**：解析多部分表单数据，`maxMemory`参数指定了系统使用的最大内存，超过这个值的文件内容会被写入临时文件中。解析后的文件数据可以通过`MultipartForm`字段访问。
+
+## Context
+
+- `Handler`的参数变成成了`gee.Context`，提供了查询Query/PostForm参数的功能。
+- `gee.Context`封装了`HTML/String/JSON`函数，能够快速构造HTTP响应。
+
+`curl "http://localhost:9999/login" -X POST -d 'username=geektutu&password=1234'`
+
+`-X POST` : method is POST
+
+`-d 'username=geektutu&password=1234'` : data
+
+相当于创建一个router，然后一个request url 在router里对应一个handlerFunc
+
+然后context管理request和response的格式
+
