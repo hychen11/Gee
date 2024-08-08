@@ -38,6 +38,21 @@ Using %s: Hello, World!
 Using %q: "Hello, World!\n"
 ```
 
+### Syntax
+
+```go
+s1 := []int{1, 2}
+s2 := []int{3, 4}
+s1 = append(s1, s2...)
+//...is expand element in s2
+//for loop in go
+for _,x := range s1{
+    //...
+}
+```
+
+
+
 ## HTTP
 
 ```go
@@ -159,4 +174,30 @@ func New() *Engine {
 相当于创建一个router，然后一个request url 在router里对应一个handlerFunc
 
 然后context管理request和response的格式
+
+## Dynamic Route
+
+map can only store static router
+
+动态路由实现
+
+方法1：开源的路由实现`gorouter`支持在路由规则中嵌入正则表达式，例如`/p/[0-9A-Za-z]+`即路径中的参数仅匹配数字和字母
+
+2：另一个开源实现`httprouter`就不支持正则表达式
+
+动态路由具备以下两个功能
+
+`:/lang`是占位符
+
+- 参数匹配`:`。例如 `/p/:lang/doc`，可以匹配 `/p/c/doc` 和 `/p/go/doc`。
+- 通配`*`。例如 `/static/*filepath`，可以匹配`/static/fav.ico`，也可以匹配`/static/js/jQuery.js`，这种模式常用于静态服务器，能够递归地匹配子路径。
+
+#### Parse
+
+例如`/p/go/doc`匹配到`/p/:lang/doc`，解析结果为：`{lang: "go"}`，`/static/css/geektutu.css`匹配到`/static/*filepath`，解析结果为`{filepath: "css/geektutu.css"}`。
+
+```shell
+#gee has router_test.go
+go test gee # will auto run test file
+```
 
