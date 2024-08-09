@@ -201,3 +201,37 @@ map can only store static router
 go test gee # will auto run test file
 ```
 
+## Route Group Control
+
+- 以`/post`开头的路由匿名可访问。
+- 以`/admin`开头的路由需要鉴权。
+- 以`/api`开头的路由是 RESTful 接口，可以对接第三方平台，需要三方平台鉴权。
+
+路由分组不仅支持简单的分组，还可以嵌套分组
+
+`/post` 是一个分组，它包含了 `/post/a` 和 `/post/b` 这样的子分组
+
+`/admin` 可能包含了 `/admin/user` 和 `/admin/settings` 这样的子分组
+
+为了实现分组功能，框架需要定义一个 `Group` 对象。这个对象通常包含以下几个属性：
+
+1. **前缀（prefix）**：
+   - 表示这个分组的 URL 前缀，比如 `/`、`/api` 或者 `/admin`。所有在这个分组下定义的路由，都会自动加上这个前缀。
+2. **父分组（parent）**：
+   - 如果支持分组嵌套，那么每个分组都可能有一个父分组。比如 `/admin/user` 分组的父分组就是 `/admin`。通过父分组，可以构建出分组的层次结构。
+3. **中间件（middlewares）**：
+   - 存储应用在该分组上的中间件。这些中间件会在处理分组下的所有路由之前执行。
+4. **引擎（Engine）**：
+   - 这是整个框架的核心，管理所有的路由和中间件。`Group` 对象需要访问 `Engine`，以便在分组中定义路由时能够正确地将它们注册到框架中。
+
+```go
+r := gee.New()       // 创建一个新的框架实例
+v1 := r.Group("/v1") // 创建一个以 "/v1" 为前缀的分组
+
+// 在分组 v1 下定义一个 GET 请求的路由
+v1.GET("/", func(c *gee.Context) {
+    c.HTML(http.StatusOK, "<h1>Hello Gee</h1>")
+})
+```
+
+v1下面的router都包含/v1为前缀
