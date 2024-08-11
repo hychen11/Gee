@@ -235,3 +235,60 @@ v1.GET("/", func(c *gee.Context) {
 ```
 
 v1下面的router都包含/v1为前缀
+
+## Middlewares
+
+框架需要有一个插口，允许用户自己定义功能，嵌入到框架中，仿佛这个功能是框架原生支持的一样
+
+Gee 的中间件的定义与路由映射的 Handler 一致，处理的输入是`Context`对象。插入点是框架接收到请求初始化`Context`对象后，允许用户使用自己定义的中间件做一些额外的处理，例如记录日志等，以及对`Context`进行二次加工
+
+`c.Next()`表示等待执行其他的中间件或用户的`Handler`	
+
+当接收到请求后，匹配路由，该请求的所有信息都保存在`Context`中。中间件也不例外，接收到请求后，应查找所有应作用于该路由的中间件，保存在`Context`中，依次进行调用。
+
+```go
+type Context{
+    //other 
+    ...
+	//middleware
+	handlers []HandlerFunc	//array list to record HandlerFunc
+    index 	int				//index of array list
+}
+```
+
+为什么依次调用后，还需要在`Context`中保存呢？因为在设计中，中间件不仅作用在**处理流程前**，也可以作用在**处理流程后**，即在用户定义的 Handler 处理完毕后，还可以执行剩下的操作。
+
+`c.Next()` 表示进入下一个中间件，等下一个中间件完成后返回结果
+
+```go
+func A(c *Context){
+    part1
+    c.Next()
+    part2
+}
+
+func B(c *Context){
+    part3
+    c.Next()
+    part4
+}
+```
+
+`func A -> part1 -> part3 ->HandlerFunc -> part2 -> part4`
+
+
+
+## Syntax
+
+```go
+func A(numbers ...int){
+    a:=[]int{}
+    a=append(a,numbers...)
+}
+func (group *RouterGroup) Use(middlewares ...HandlerFunc) {
+    group.middlewares = append(group.middlewares, middlewares...)
+}
+
+```
+
+ `...int` 表示这个函数可以接受任意数量的 `int` 参数
