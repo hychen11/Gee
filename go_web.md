@@ -190,7 +190,9 @@ map can only store static router
 `:/lang`是占位符
 
 - 参数匹配`:`。例如 `/p/:lang/doc`，可以匹配 `/p/c/doc` 和 `/p/go/doc`。
-- 通配`*`。例如 `/static/*filepath`，可以匹配`/static/fav.ico`，也可以匹配`/static/js/jQuery.js`，这种模式常用于静态服务器，能够递归地匹配子路径。
+- 通配`*`。例如 `/static/*filepath`，可以匹配`/static/fav.ico`，也可以匹配`/static/js/jQuery.js`，这种模式常用于静态服务器，能够递归地匹配子路径。(`filepath`匹配`fav.ico`)
+
+路由规则`/assets/*filepath`，可以匹配`/assets/`开头的所有的地址。例如`/assets/js/geektutu.js`，匹配后，参数`filepath`就赋值为`js/geektutu.js`
 
 #### Parse
 
@@ -276,7 +278,29 @@ func B(c *Context){
 
 `func A -> part1 -> part3 ->HandlerFunc -> part2 -> part4`
 
+具体实现过程就是
 
+一个RouterGroup里有自己的middleware array list
+
+```go
+func (group *RouterGroup)Use(middleware ...HandlerFunc){
+    group.middleware=append(group.middleware,middleware)
+}
+```
+
+这里有请求时，对应的url从group里取出相应的HandlerFunc，存入对应的router的middleware list里，然后调用`c.Next()`进行处理:`c.index`遍历调用
+
+## HTML Template
+
+### 静态文件(Serve Static Files)
+
+要做到服务端渲染，第一步便是要支持 JS、CSS 等静态文件
+
+如果将所有的静态文件放在`/usr/web`目录下，那么`filepath`的值即是该目录下文件的相对地址。映射到真实的文件后，将文件返回，静态服务器就实现了
+
+gee 框架要做的，仅仅是解析请求的地址，映射到服务器上文件的真实地址，交给`http.FileServer`处理就好了
+
+在 `Context` 中添加了成员变量 `engine *Engine`，这样就能够通过 Context 访问 Engine 中的 HTML 模板
 
 ## Syntax
 
@@ -292,3 +316,4 @@ func (group *RouterGroup) Use(middlewares ...HandlerFunc) {
 ```
 
  `...int` 表示这个函数可以接受任意数量的 `int` 参数
+
