@@ -290,9 +290,23 @@ func (group *RouterGroup)Use(middleware ...HandlerFunc){
 
 这里有请求时，对应的url从group里取出相应的HandlerFunc，存入对应的router的middleware list里，然后调用`c.Next()`进行处理:`c.index`遍历调用
 
+注意！每个middleware里只能调用一个Next() 然后下面的Context Next每次调用index++，只用一个handlers
+
+```go
+func (c *Context) Next(){
+	c.index++
+	s:=len(c.handlers)
+	for ;c.index < s; c.index++{
+		c.handlers[c.index](c)
+	}
+}
+```
+
+
+
 ## HTML Template
 
-### 静态文件(Serve Static Files)
+#### 静态文件(Serve Static Files)
 
 要做到服务端渲染，第一步便是要支持 JS、CSS 等静态文件
 
@@ -301,6 +315,105 @@ func (group *RouterGroup)Use(middleware ...HandlerFunc){
 gee 框架要做的，仅仅是解析请求的地址，映射到服务器上文件的真实地址，交给`http.FileServer`处理就好了
 
 在 `Context` 中添加了成员变量 `engine *Engine`，这样就能够通过 Context 访问 Engine 中的 HTML 模板
+
+## Panic Recover
+
+#### 主动触发panic
+
+```go
+	panic("crash")
+```
+
+#### defer
+
+panic 会导致程序被中止，但是在退出前，会先处理完当前协程上已经defer 的任务，执行完成后再退出。效果类似于 java 语言的 `try...catch`。
+
+出现异常在退出前先把defer的内容运行了
+
+```go
+func main(){
+	defer func(){
+		fmt.Println("defer")
+	}()
+	panic("crash")
+}
+//defer
+//crash
+```
+
+当 `main` 函数开始执行时，首先注册了一个 `defer` 函数，该函数会在 `main` 函数结束时打印 `"defer"`。
+
+接着，程序遇到了 `panic("crash")`，这会引发一个 `panic`，导致程序的正常执行流程被中断。
+
+在 `panic` 被引发后，Go 会立刻开始执行所有已注册的 `defer` 语句。因此，`fmt.Println("defer")` 被执行，打印出 `"defer"`。
+
+最后，程序由于 `panic` 而终止，并输出 `panic: crash`，表明程序崩溃并提供了 `panic` 的信息。
+
+#### recover
+
+```go
+func test_recover() {
+	defer func() {
+		fmt.Println("defer func")
+		if err := recover(); err != nil {
+			fmt.Println("recover success")
+		}
+	}()
+
+	arr := []int{1, 2, 3}
+	fmt.Println(arr[4])
+	fmt.Println("after panic")
+}
+
+func main() {
+	test_recover()
+	fmt.Println("after recover")
+}
+```
+
+recover 捕获了 panic，程序正常结束。*test_recover()* 中的 *after panic* 没有打印，这是正确的，当 panic 被触发时，控制权就被交给了 defer
+
+就像在 java 中，`try`代码块中发生了异常，控制权交给了 `catch`，接下来执行 catch 代码块中的代码
+
+main() 中打印了 after recover，说明程序已经恢复正常，继续往下执行直到结束
+
+`runtime.Callers(3, pcs[:])` Caller返回调用栈， `skip first 3 caller`
+
+第 0 个 Caller 是 Callers 本身，第 1 个是上一层 trace，第 2 个是再上一层的 `defer func`
+
+`runtime.FuncForPC(pc)` 获取对应的函数，在通过 `fn.FileLine(pc)` 获取到调用该函数的文件名和行号
+
+```go
+func trace(message string)string{
+	var pcs [32]uintptr
+	n:=runtime.Callers(3,pcs[:])// skip first 3 caller
+
+	var str strings.Builder
+	str.WriteString(message + "\nTraceback:")
+	
+	for _,pc :=range pcs[:n] {
+		fn:=runtime.FuncForPC(pc)
+		file,line:=fn.FileLine(pc)
+		str.WriteString(fmt.Sprintf("\n\t%s:%d",file,line))
+	}
+	return str.String()
+}
+
+func Recovery() HandlerFunc{
+	return func(c *Context){
+		defer func(){
+			if err:=recover();err!=nil{
+				message:=fmt.Sprintf("%s",err)
+				log.Printf("%s \n\n",trace(message))
+				c.Fail(http.StatusInternalServerError,"Internal Server Error")
+			}
+		}()
+		c.Next()
+	}
+}
+```
+
+
 
 ## Syntax
 

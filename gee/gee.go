@@ -33,6 +33,12 @@ func New() *Engine {
 	return engine
 }
 
+func Default() *Engine{
+	engine := New()
+	engine.Use(Logger(),Recovery())//global middleware
+	return engine
+}
+
 func (group *RouterGroup)Group(prefix string) *RouterGroup {
 	engine:=group.engine
 	newGroup:=&RouterGroup{
@@ -130,3 +136,4 @@ func (engine *Engine) SetFuncMap(funcMap template.FuncMap){
 func (engine *Engine) LoadHTMLGlob(pattern string) {
 	engine.htmlTemplates = template.Must(template.New("").Funcs(engine.funcMap).ParseGlob(pattern))
 }
+
