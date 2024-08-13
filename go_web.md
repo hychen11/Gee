@@ -20,6 +20,13 @@ package gee
 
 只有首字母大写的标识符才是公开的（可导出的），可以被其他包导入并使用；而首字母小写的标识符是私有的（未导出的），只能在同一个包内部访问！！！
 
+```shell
+go build .
+#auto compile whole package
+go run .
+#auto compile and run main function!
+```
+
 ### go.mod
 
 ```shell
@@ -170,6 +177,15 @@ func main() {
 
 ### Test
 
+#### Run Test
+
+```shell
+$go test
+$go test -v				#显示每个用例的测试结果
+$go test -cover			#输出每个被测试的函数的覆盖率信息
+$go test -run TestAdd -v
+```
+
 name:  `XX_test.go` 在待测试文件同一目录下
 
 #### Benchmark:  `*testing.B` 
@@ -230,14 +246,31 @@ func TestXXX(t *testing.T){
 
 `t.Error` 和 `t.Fatal`: 用于报告测试错误，`t.Error` 继续执行测试，`t.Fatal` 停止测试执行
 
-#### Run Test
+#### Subtests
+
+```go
+func TestMul(t *testing.T) {
+	t.Run("pos", func(t *testing.T) {
+		if Mul(2, 3) != 6 {
+			t.Fatal("fail")
+		}
+
+	})
+	t.Run("neg", func(t *testing.T) {
+		if Mul(2, -3) != -6 {
+			t.Fatal("fail")
+		}
+	})
+}
+```
 
 ```shell
-$go test
-$go test -v				#显示每个用例的测试结果
-$go test -cover			#输出每个被测试的函数的覆盖率信息
-$go test -run TestAdd -v
+go test -run TestMul/pos
+go test -run TestMul/neg
+go test -run TestMul
 ```
+
+
 
 # Gee
 
@@ -664,5 +697,28 @@ kv:=ele.Value(*entry)
 //judge if ele is *entry type, if true, convert to *entry type
 ```
 
+## sync.Mutex 
 
+`sync.Mutex`互斥锁，如果goroutine获取锁的占有权，别的goroutine请求会阻塞在`Lock()`，直到调用`Unlock()`
+
+````go
+func A(){
+    m.Lock()
+    defer m.Unlock()
+    //other operation
+}
+````
+
+在 `add` 方法中，判断了 `c.lru` 是否为 nil，如果等于 nil 再创建实例。这种方法称之为延迟初始化(**Lazy Initialization**)，一个对象的延迟初始化意味着该对象的创建将会延迟至第一次使用该对象时。主要用于提高性能，并减少程序内存要求。
+
+## Group
+
+```
+                           是
+接收 key --> 检查是否被缓存 -----> 返回缓存值 ⑴
+                |  否                         是
+                |-----> 是否应当从远程节点获取 -----> 与远程节点交互 --> 返回缓存值 ⑵
+                            |  否
+                            |-----> 调用`回调函数`，获取值并添加到缓存 --> 返回缓存值 ⑶
+```
 
