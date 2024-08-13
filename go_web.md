@@ -722,3 +722,15 @@ func A(){
                             |-----> 调用`回调函数`，获取值并添加到缓存 --> 返回缓存值 ⑶
 ```
 
+回调函数就是`Getter`
+
+## HTTP
+
+```go
+package http
+
+type Handler interface {
+    ServeHTTP(w ResponseWriter, r *Request)
+}
+```
+
