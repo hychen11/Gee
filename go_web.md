@@ -51,7 +51,195 @@ for _,x := range s1{
 }
 ```
 
+```go
+func A(numbers ...int){
+    a:=[]int{}
+    a=append(a,numbers...)
+}
+func (group *RouterGroup) Use(middlewares ...HandlerFunc) {
+    group.middlewares = append(group.middlewares, middlewares...)
+}
 
+```
+
+ `...int` 表示这个函数可以接受任意数量的 `int` 参数
+
+### Data Structure
+
+`container/heap`
+
+```go
+package main
+
+import (
+    "container/heap"
+    "fmt"
+)
+
+// 定义一个整数堆，继承了heap.Interface接口
+type IntHeap []int
+
+func (h IntHeap) Len() int           { return len(h) }
+func (h IntHeap) Less(i, j int) bool { return h[i] < h[j] }
+func (h IntHeap) Swap(i, j int)      { h[i], h[j] = h[j], h[i] }
+
+func (h *IntHeap) Push(x interface{}) {
+    *h = append(*h, x.(int))
+}
+
+func (h *IntHeap) Pop() interface{} {
+    old := *h
+    n := len(old)
+    x := old[n-1]
+    *h = old[0 : n-1]
+    return x
+}
+
+func main() {
+    h := &IntHeap{2, 1, 5}
+    heap.Init(h)               // 初始化堆
+    heap.Push(h, 3)            // 插入一个元素
+    fmt.Printf("最小元素: %d\n", (*h)[0]) // 查看最小元素
+
+    for h.Len() > 0 {
+        fmt.Printf("%d ", heap.Pop(h)) // 依次取出最小元素
+    }
+}
+
+```
+
+`container/list`
+
+https://pkg.go.dev/container/list
+
+```go
+
+import (
+	"container/list"
+	"fmt"
+)
+
+func main() {
+	// Create a new list and put some numbers in it.
+	l := list.New()
+	e4 := l.PushBack(4)
+	e1 := l.PushFront(1)
+	l.InsertBefore(3, e4)
+	l.InsertAfter(2, e1)
+
+	// Iterate through list and print its contents.
+	for e := l.Front(); e != nil; e = e.Next() {
+		fmt.Println(e.Value)
+	}
+
+}
+```
+
+`container/ring`
+
+```go
+package main
+
+import (
+    "container/ring"
+    "fmt"
+)
+
+func main() {
+    r := ring.New(3)  // 创建一个大小为3的循环链表
+
+    // 给每个元素赋值
+    for i := 0; i < r.Len(); i++ {
+        r.Value = i
+        r = r.Next()
+    }
+
+    // 打印循环链表中的所有元素
+    r.Do(func(p interface{}) {
+        fmt.Println(p.(int))
+    })
+
+    // 移动指针并再次打印
+    r = r.Move(1)
+    fmt.Println("After moving 1 step:")
+    r.Do(func(p interface{}) {
+        fmt.Println(p.(int))
+    })
+}
+```
+
+### Test
+
+name:  `XX_test.go` 在待测试文件同一目录下
+
+#### Benchmark:  `*testing.B` 
+
+```go
+func BenchmarkAdd(b *testing.B) {
+    for i := 0; i < b.N; i++ {
+        _ = add(1, 2)
+    }
+}
+
+func add(a, b int) int {
+    return a + b
+}
+```
+
+#### TestMain:  `*testing.M`
+
+```go
+// TestMain 是测试的主函数
+func TestMain(m *testing.M) {
+    // 在测试运行前执行的初始化代码
+    fmt.Println("Setting up tests")
+
+    // 运行所有的测试
+    exitCode := m.Run()
+
+    // 在测试运行后执行的清理代码
+    fmt.Println("Cleaning up")
+
+    // 根据测试结果退出
+    os.Exit(exitCode)
+}
+
+func TestAdd(t *testing.T) {
+    result := add(1, 2)
+    if result != 3 {
+        t.Errorf("Expected 3 but got %d", result)
+    }
+}
+```
+
+#### `testing.T` 
+
+```go
+func TestXXX(t *testing.T){
+	result := Add(1, 2)
+    expected := 3
+    if result != expected {
+        t.Errorf("Expected %d but got %d", expected, result)
+    }
+    
+    if result > 10 {
+        t.Fatal("Result exceeds 10")
+    }
+}
+```
+
+`t.Error` 和 `t.Fatal`: 用于报告测试错误，`t.Error` 继续执行测试，`t.Fatal` 停止测试执行
+
+#### Run Test
+
+```shell
+$go test
+$go test -v				#显示每个用例的测试结果
+$go test -cover			#输出每个被测试的函数的覆盖率信息
+$go test -run TestAdd -v
+```
+
+# Gee
 
 ## HTTP
 
@@ -413,20 +601,68 @@ func Recovery() HandlerFunc{
 }
 ```
 
+# GeeCache
 
+访问一个网页，网页和引用的 JS/CSS 等静态文件，根据不同的策略，会缓存在浏览器本地或是 CDN 服务器，那在第二次访问的时候，就会觉得网页加载的速度快了不少
 
-## Syntax
+微博的点赞的数量，不可能每个人每次访问，都从数据库中查找所有点赞的记录再统计，数据库的操作是很耗时的，很难支持那么大的流量，所以一般点赞这类数据是缓存在 Redis 服务集群中的
+
+#### scale horizontally
+
+利用多台计算机的资源，并行处理提高性能就要缓存应用能够支持分布式，这称为水平扩展(scale horizontally)
+
+#### scale vertically
+
+增加单个节点的计算、存储、带宽等，来提高系统的性能，硬件的成本和性能并非呈线性关系，大部分情况下，分布式系统是一个更优的选择
+
+## LRU
+
+Linkedlist+Hashmap
 
 ```go
-func A(numbers ...int){
-    a:=[]int{}
-    a=append(a,numbers...)
-}
-func (group *RouterGroup) Use(middlewares ...HandlerFunc) {
-    group.middlewares = append(group.middlewares, middlewares...)
+type Cache struct {
+	maxBytes 	int64 // max capacity
+	nBytes 		int64 // number current bytes	
+	ll 			*list.List
+	cache 		map[string]*list.Element
+	OnEvicted	func(key string,value Value)
 }
 
+type entry struct {
+	key 	string
+	value   Value
+}
+
+//interface ( count how many bytes it takes )
+type Value interface{
+	Len()	int
+}
 ```
 
- `...int` 表示这个函数可以接受任意数量的 `int` 参数
+### 类型断言语法
+
+处理 `interface{}` 类型时非常有用的工具
+
+```go
+x.(T)
+//x interface
+//T type
+
+var x interface{} = "Hello, Go!"
+
+// 类型断言为 string
+s := x.(string)
+fmt.Println(s)  // 输出: Hello, Go!
+```
+
+如果类型断言失败（例如 `x` 的实际类型不是 `string`），程序会发生 `panic`
+
+```go
+kv:=ele.Value(*entry)
+//Value is interface
+//*entry is type
+//judge if ele is *entry type, if true, convert to *entry type
+```
+
+
 
