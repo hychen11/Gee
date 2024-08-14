@@ -724,13 +724,163 @@ func A(){
 
 回调函数就是`Getter`
 
-## HTTP
+## HTTP Server
 
 ```go
 package http
 
 type Handler interface {
     ServeHTTP(w ResponseWriter, r *Request)
+}
+```
+
+`HTTPPool` 存URL.PATH
+
+- `HTTPPool` 只有 2 个参数，一个是 self，用来记录自己的地址，包括主机名/IP 和端口。
+- 另一个是 basePath，作为节点间通讯地址的前缀，默认是 `/_geecache/`，那么 http://example.com/_geecache/ 开头的请求，就用于节点间的访问。因为一个主机上还可能承载其他的服务，加一段 Path 是一个好习惯。比如，大部分网站的 API 接口，一般以 `/api` 作为前缀。
+
+先从url parse出groupName和key
+
+然后GetGroup后Get(key)
+
+## Consistent Hashing
+
+一致性哈希算法将 key 映射到 2^32 的空间中，将这个数字首尾相连，形成一个环
+
+![一致性哈希添加节点 consistent hashing add peer](https://geektutu.com/post/geecache-day4/add_peer.jpg)
+
+`key11`，`key2`，`key27` 均映射到 peer2，`key23` 映射到 peer4。此时，如果新增节点/机器 peer8，假设它新增位置如图所示，那么只有 `key27` 从 peer2 调整到 peer8，其余的映射均没有发生改变。
+
+也就是说，一致性哈希算法，在新增/删除节点时，只需要重新定位该节点附近的一小部分数据，而不需要重新定位所有的节点，这就解决了上述的问题。
+
+#### 虚拟节点
+
+一个真实节点对应多个虚拟节点
+
+假设 1 个真实节点对应 3 个虚拟节点，那么 peer1 对应的虚拟节点是 peer1-1、 peer1-2、 peer1-3
+
+为了均衡负载，我们引入虚拟节点的概念。假设每个物理节点有 3 个虚拟节点：
+
+- `peer1` 对应 `peer1-1`、`peer1-2`、`peer1-3`
+- `peer2` 对应 `peer2-1`、`peer2-2`、`peer2-3`
+- `peer3` 对应 `peer3-1`、`peer3-2`、`peer3-3`
+
+通过虚拟节点，数据在不同的物理节点之间分布得更加均匀，避免了数据倾斜的问题。虚拟节点扩充了环上的节点数量，增加了映射的可能性，从而使得负载更加均衡。
+
+```go
+type Hash func(data []byte) uint32
+
+type Map struct{
+	hash 		Hash
+	replicas	int
+	keys        []int
+	hashMap     map[int]string
+}
+
+func New(replicas int,fn Hash)*Map{
+	m:= &Map(
+		hash:fn,
+		replicas:replicas,
+		keys:make([]int),
+		hashMap:make(map[int]string),
+	)
+
+	if m.hash==nil{
+		m.hash=crc32.ChecksumIEEE
+	}
+	return m
+}
+```
+
+`replicas` 是虚拟节点的倍数
+
+`Map`存所有的hash keys
+
+```go
+import (
+	"fmt"
+	"hash/crc32"
+)
+
+func main() {
+	data := []byte("hello")
+	checksum := crc32.ChecksumIEEE(data)
+	fmt.Printf("CRC-32 Checksum: %08x\n", checksum)
+}
+```
+
+```go
+import "sort"
+numbers:=[]int{1,3,2,5,4}
+sort.Ints(numbers)
+fmt.Println("Sorted numbers:", numbers)
+
+
+package main
+import (
+	"fmt"
+	"sort"
+)
+type Person struct {
+	Name string
+	Age  int
+}
+type People []Person
+func (p People) Len() int {
+	return len(p)
+}
+func (p People) Less(i, j int) bool {
+	return p[i].Age < p[j].Age
+}
+func (p People) Swap(i, j int) {
+	p[i], p[j] = p[j], p[i]
+}
+func main() {
+	people := People{
+		{Name: "Alice", Age: 30},
+		{Name: "Bob", Age: 25},
+		{Name: "Charlie", Age: 35},
+	}
+	sort.Sort(people)
+	for _, person := range people {
+		fmt.Printf("%s: %d\n", person.Name, person.Age)
+	}
+}
+```
+
+这里Lambda自定义就是通过`Less(i,j int)`实现的
+
+`sort.Sort(people)` 
+
+#### Binary Search (with Lambda)
+
+```go
+idx := sort.Search(len(m.keys), func(i int) bool {
+    return m.keys[i] >= hash
+})
+```
+
+假设 `m.keys` 是一个已排序的切片，`hash` 是你要查找的位置。这个代码的作用是找到 `m.keys` 中第一个大于或等于 `hash` 的元素的位置 `idx`。
+
+- **`len(m.keys)`**：指定了搜索的范围，即从 `0` 到 `len(m.keys)-1`。
+- **`func(i int) bool { return m.keys[i] >= hash }`**：这是一个匿名函数，用来判断 `m.keys[i]` 是否大于或等于 `hash`。在 `sort.Search` 的过程中，这个函数会被多次调用，通过不断缩小搜索范围来找到符合条件的第一个索引 `i`。
+
+```go
+import (
+	"fmt"
+	"strconv"
+)
+
+func main() {
+	// 字符串转整数
+	num, err := strconv.Atoi("123")
+	if err == nil {
+		fmt.Println("Integer:", num)
+	}
+
+	// 整数转字符串
+	str := strconv.Itoa(456)
+	fmt.Println("String:", str)
 }
 ```
 
