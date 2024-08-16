@@ -884,3 +884,68 @@ func main() {
 }
 ```
 
+这里的`Add`和`Get` 就是增加虚拟节点，查询最近的虚拟节点
+
+## Register Peers
+
+在分布式缓存系统中，缓存数据通常不会存储在一个单一的服务器上，而是分布在多个节点上。每个节点都是一个独立的服务器，保存着整个缓存系统的一部分数据。**远程节点**就是指除了当前正在处理请求的节点以外的其他节点。
+
+```go
+type httpGetter struct {
+	baseURL string
+}
+
+func (h *httpGetter) Get(group string, key string) ([]byte, error) {
+	u := fmt.Sprintf(
+		"%v%v/%v",
+		h.baseURL,
+		url.QueryEscape(group),
+		url.QueryEscape(key),
+	)
+	res, err := http.Get(u)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("server returned: %v", res.Status)
+	}
+
+	bytes, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return nil, fmt.Errorf("reading response body: %v", err)
+	}
+
+	return bytes, nil
+}
+
+var _ PeerGetter = (*httpGetter)(nil)
+```
+
+这里的`url.QueryEscape()`是 Go 语言中 `net/url` 包提供的一个函数，用于对字符串进行 URL 编码。具体来说，它会将字符串中的特殊字符转换为百分号编码格式，以便在 URL 中安全传输。
+
+`http.Get(u)`：这个函数是 Go 语言标准库中的一个函数，用于发送一个 HTTP GET 请求。`u` 是目标 URL（通常是一个字符串），程序会尝试连接到这个 URL 并获取响应。
+
+这里的`res` 是一个 `*http.Response` 类型的指针，表示 HTTP 请求的响应。它包含了 HTTP 请求返回的所有信息，包括状态码、响应头、响应体等
+
+```go
+type Response struct {
+    Status     string // 服务器返回的状态行，例如 "200 OK"
+    StatusCode int    // 状态码，例如 200, 404, 500 等
+    Proto      string // HTTP协议版本，例如 "HTTP/1.1"
+    ProtoMajor int    // 主版本号，例如 1
+    ProtoMinor int    // 次版本号，例如 1
+    Header     Header // 响应头，一个 map[string][]string，保存了键值对形式的响应头信息
+    Body       io.ReadCloser // 响应体，用于读取服务器返回的数据
+    ContentLength int64 // 响应体的长度，值为 -1 时表示未知长度
+    TransferEncoding []string // 传输编码，例如 "chunked"
+    Close      bool // 是否在响应后关闭连接
+    Uncompressed bool // 是否已解压缩响应体
+    Trailer    Header // 可能的 Trailer 响应头，类似于 Header
+    Request    *Request // 产生该响应的请求
+    TLS        *tls.ConnectionState // 如果使用了 TLS，保存相关的 TLS 信息
+}
+```
+
+使用 `io.ReadAll` 从 `res.Body` 读取响应体内容，然后将其转换为字符串或其他所需格式。需要注意的是，读取后 `res.Body` 会被耗尽，无法再次读取

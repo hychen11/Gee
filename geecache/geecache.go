@@ -19,6 +19,7 @@ type Group struct{
 	name 		string
 	getter      Getter
 	maincache   cache
+	peers  	    PeerPicker
 }
 
 //RWMutex include RLock and Lock 
@@ -62,6 +63,14 @@ func (g *Group)Get(key string)(ByteView,error){
 
 
 func (g *Group)load(key string)(ByteView,error){
+	if g.peers!=nil{
+		if peer,ok:=g.peers.PickPeer(key);ok{
+			if bytes,err:=g.getFromPeer(peer,key);err==nil{
+				return bytes,nil
+			}
+			log.Println("[GeeCache]Failed to get from peer!")
+		}
+	}
 	return g.getLocally(key)
 }
 
@@ -73,4 +82,19 @@ func (g *Group)getLocally(key string)(ByteView,error){
 	value :=ByteView{b:cloneBytes(bytes)} 
 	g.maincache.add(key,value)
 	return value,nil
+}
+
+func (g *Group) RegisterPeers(peers PeerPicker){
+	if g.peers!=nil{
+		panic("RegisterPeers called more than once")
+	}
+	g.peers=peers
+}
+
+func (g *Group) getFromPeer(peer PeerGetter,key string)(ByteView,error){
+	bytes,err:=peer.Get(g.name,key)
+	if err!=nil{
+		return ByteView{},err
+	}
+	return ByteView{bytes},nil
 }
