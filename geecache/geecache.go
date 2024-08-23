@@ -3,6 +3,7 @@ import (
 	"fmt"
 	"log"
 	"sync"
+	"geecache/singleflight"
 )
 
 type Getter interface {
@@ -20,6 +21,7 @@ type Group struct{
 	getter      Getter
 	maincache   cache
 	peers  	    PeerPicker
+	loader      *singleflight.Group
 }
 
 //RWMutex include RLock and Lock 
@@ -38,6 +40,8 @@ func NewGroup(name string,cacheBytes int64,getter Getter)*Group{
 		name: 		name,
 		getter: 	getter,
 		maincache:  cache{cacheBytes:cacheBytes},
+		loader:     &singleflight.Group{},
+
 	}
 	groups[name]=g
 	return g
@@ -62,16 +66,22 @@ func (g *Group)Get(key string)(ByteView,error){
 }
 
 
-func (g *Group)load(key string)(ByteView,error){
-	if g.peers!=nil{
-		if peer,ok:=g.peers.PickPeer(key);ok{
-			if bytes,err:=g.getFromPeer(peer,key);err==nil{
-				return bytes,nil
+func (g *Group)load(key string)(value ByteView,err error){
+	viewi,err:=g.loader.Do(key,func()(interface{},error){
+		if g.peers!=nil{
+			if peer,ok:=g.peers.PickPeer(key);ok{
+				if bytes,err:=g.getFromPeer(peer,key);err==nil{
+					return bytes,nil
+				}
+				log.Println("[GeeCache]Failed to get from peer!")
 			}
-			log.Println("[GeeCache]Failed to get from peer!")
 		}
+		return g.getLocally(key)
+	})
+	if err==nil{
+		return viewi.(ByteView),nil
 	}
-	return g.getLocally(key)
+	return
 }
 
 func (g *Group)getLocally(key string)(ByteView,error){

@@ -25,6 +25,7 @@ go build .
 #auto compile whole package
 go run .
 #auto compile and run main function!
+
 ```
 
 ### go.mod
@@ -949,3 +950,17 @@ type Response struct {
 ```
 
 使用 `io.ReadAll` 从 `res.Body` 读取响应体内容，然后将其转换为字符串或其他所需格式。需要注意的是，读取后 `res.Body` 会被耗尽，无法再次读取
+
+## singleflight
+
+> **缓存雪崩**：缓存在同一时刻全部失效，造成瞬时DB请求量大、压力骤增，引起雪崩。缓存雪崩通常因为缓存服务器宕机、缓存的 key 设置了相同的过期时间等引起。
+
+> **缓存击穿**：一个存在的key，在缓存过期的一刻，同时有大量的请求，这些请求都会击穿到 DB ，造成瞬时DB请求量大、压力骤增。
+
+> **缓存穿透**：查询一个不存在的数据，因为不存在则不会写到缓存中，所以每次都会去请求 DB，如果瞬间流量过大，穿透到 DB，导致宕机。
+
+并发协程之间不需要消息传递，非常适合 `sync.WaitGroup`。
+
+- wg.Add(1) 锁加1
+- wg.Wait() 阻塞，直到锁被释放
+- wg.Done() 锁减1
