@@ -964,3 +964,28 @@ type Response struct {
 - wg.Add(1) 锁加1
 - wg.Wait() 阻塞，直到锁被释放
 - wg.Done() 锁减1
+
+我们并发了 N 个请求 `?key=Tom`，8003 节点向 8001 同时发起了 N 次请求。假设对数据库的访问没有做任何限制的，很可能向数据库也发起 N 次请求，容易导致缓存击穿和穿透。即使对数据库做了防护，HTTP 请求是非常耗费资源的操作，针对相同的 key，8003 节点向 8001 发起三次请求也是没有必要的。那这种情况下，我们如何做到只向远端节点发起一次请求呢
+
+```go
+package singleflight
+
+import "sync"
+
+type call struct {
+	wg  sync.WaitGroup
+	val interface{}
+	err error
+}
+
+type Group struct {
+	mu sync.Mutex       // protects m
+	m  map[string]*call
+}
+```
+
+* `call` 代表正在进行中，或已经结束的请求。使用 `sync.WaitGroup` 锁避免重入。
+* `Group` 是 singleflight 的主数据结构，管理不同 key 的请求(call)
+
+## protobuf
+
