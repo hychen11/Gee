@@ -986,6 +986,89 @@ type Group struct {
 
 * `call` 代表正在进行中，或已经结束的请求。使用 `sync.WaitGroup` 锁避免重入。
 * `Group` 是 singleflight 的主数据结构，管理不同 key 的请求(call)
+* Do 的作用就是，针对相同的 key，无论 Do 被调用多少次，函数 `fn` 都只会被调用一次，等待 fn 调用结束了，返回返回值或错误。
+
+```go
+//judge if exists in group!
+// if in, c.wg.wait()
+//	if not wait() then return val,err
+
+//if not exists, new(call)
+c.wg.Add(1)
+c.val, c.err = fn()
+c.wg.Done()
+```
 
 ## protobuf
+
+protobuf 广泛地应用于远程过程调用(RPC) 的二进制传输，使用 protobuf 的目的非常简单，为了获得更高的性能
+
+传输前使用 protobuf 编码，接收方再进行解码，可以显著地降低二进制传输的大小。另外一方面，protobuf 可非常适合传输结构化数据，便于通信字段的扩展。
+
+它只存储数据的实际值，没有多余的字符（如 JSON 中的标签和括号）
+
+注意这里引入了geecache/geecache后，需要update go mod! `go mod tidy` ，如果没有go.mod 则`go mod init`
+
+或者手动导入最外层的`go get geecache@v0.0.0`
+
+```shell
+go get -u github.com/golang/protobuf/protoc-gen-go、
+protoc --go_out=. *.proto
+```
+
+```shell
+export GOPATH=$HOME/go
+export PATH=$PATH:$GOPATH/bin
+```
+
+`.proto`
+
+```protobuf
+syntax = "proto3";
+
+package geecachepb;
+
+message GetRequest {
+  string key = 1;
+}
+
+message GetResponse {
+  bytes value = 1;
+}
+```
+
+```go
+package main
+
+import (
+	"fmt"
+	"log"
+
+	pb "path/to/your/protobuf/package"
+	"google.golang.org/protobuf/proto"
+)
+
+func main() {
+	// 创建一个消息
+	req := &pb.GetRequest{
+		Key: "exampleKey",
+	}
+
+	// 序列化为二进制数据
+	data, err := proto.Marshal(req)
+	if err != nil {
+		log.Fatal("marshaling error: ", err)
+	}
+
+	// 从二进制数据反序列化回消息
+	var newReq pb.GetRequest
+	err = proto.Unmarshal(data, &newReq)
+	if err != nil {
+		log.Fatal("unmarshaling error: ", err)
+	}
+
+	// 输出消息内容
+	fmt.Println("Key:", newReq.Key)
+}
+```
 
